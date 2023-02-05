@@ -18,10 +18,29 @@
     <ClCompile Include="MonsterTruckSimulator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MonsterTruckSimulator.hpp">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="HummerConfig">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="JeepConfig">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="HummerIndependentWheelsConfig">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

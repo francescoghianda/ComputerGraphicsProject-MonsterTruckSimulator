@@ -19,10 +19,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Config.cpp" />
+    <None Include="JeepConfig">
+      <FileType>Document</FileType>
+    </None>
     <ClCompile Include="MonsterTruckSimulator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config.h" />
     <ClInclude Include="MonsterTruckSimulator.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="HummerConfig" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="HummerIndependentWheelsConfig" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

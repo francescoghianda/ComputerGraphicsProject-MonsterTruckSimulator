@@ -1,12 +1,13 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MonsterTruckSimulator.hpp"
+#include "Config.h"
 
 const std::string HUMMER_MODEL_PATH = "models/Hummer.obj";
 const std::string HUMMER_TEXTURE_PATH = "textures/HummerDiff.png";
 
 const std::string TERRAIN_MODEL_PATH = "models/Terrain.obj";
-const std::string TERRAIN_TEXTURE_PATH = "textures/PaloDuroPark.png";
+const std::string TERRAIN_TEXTURE_PATH = "textures/PaloDuroPark.jpg";
 
 const std::string SKY_BOX_CUBE_MODEL_PATH = "models/SkyBoxCube.obj";
 const std::string SKY_BOX_STARS_TEXTURE_PATH = "textures/stars.png";
@@ -14,9 +15,15 @@ const std::string SKY_BOX_CLOUDS_TEXTURE_PATH = "textures/clouds.png";
 
 const std::string CIRCLE_MODEL_PATH = "models/circle.obj";
 const std::string SPEEDOMETER_TEXTURE_PATH = "textures/speedometer.png";
+const std::string WATCH_TEXTURE_PATH = "textures/orologio.png";
+
 
 const std::string RECTANGLE_MODEL_PATH = "models/rectangle.obj";
 const std::string SPEEDOMETER_HAND_TEXTURE_PATH = "textures/speedometer_hand.png";
+
+const std::string WATCH_HAND_MODEL_PATH = "models/watch_hand.obj";
+const std::string WATCH_HAND_TEXTURE_PATH = "textures/watch_hand.png";
+
 
 // The uniform buffer object used in this example
 
@@ -71,41 +78,92 @@ struct TerrainInfo {
 	glm::vec2 center;
 };
 
+enum WheelPosition {
+	FRONT_RIGHT,
+	FRONT_LEFT,
+	REAR_RIGHT,
+	REAR_LEFT
+};
+
 struct HummerInfo {
 
 	const float length;
 	const float width;
-	static const float scale;
+	const float scale;
 	const float minZ;
-	const float maxEngineSpeed = 0.03f;
-	const float maxSpeed = 0.1f;
-	const float acceleration = 0.0015f;
-	const float breakDeceleretion = 0.002f;
-	const float naturalDeceleretion = 0.0003f;
-	const float rotSpeed = glm::radians(60.0f);
-	const float dxHeadlights = 0.6360 * scale;
-	const float dzHeadlights = 0.8683 * scale;
+	const float maxEngineSpeed;// = 0.03f;
+	const float maxSpeed;// = 0.1f;
+	const float acceleration;// = 0.0015f;
+	const float breakDeceleretion;// = 0.002f;
+	const float naturalDeceleretion;// = 0.0003f;
+	const float rotSpeed;// = glm::radians(60.0f);
+	//const float dxHeadlights = 0.6360 * scale;
+	//const float dzHeadlights = 0.8683 * scale;
+	//const float elevation = 0.0f;
+	const bool independentWheels = false;
 
-	const glm::vec3 leftRearLightPos = glm::vec3(0.933 * scale, 2.365 * scale, 1.326 * scale);
-	const glm::vec3 rightRearLightPos = glm::vec3(-0.973 * scale, 2.365 * scale, 1.326 * scale);
+	const glm::vec3 leftRearLightPos;// = glm::vec3(0.933 * scale, 2.365 * scale, 1.326 * scale);
+	const glm::vec3 rightRearLightPos;// = glm::vec3(-0.973 * scale, 2.365 * scale, 1.326 * scale);
 
-	const glm::vec3 leftHeadLightPos = glm::vec3(0.628 * scale, -2.731 * scale, 0.881 * scale);
-	const glm::vec3 rightHeadLightPos = glm::vec3(-0.657 * scale, -2.731 * scale, 0.881 * scale);
+	const glm::vec3 leftHeadLightPos; //= glm::vec3(0.628 * scale, -2.731 * scale, 0.881 * scale);
+	const glm::vec3 rightHeadLightPos;// = glm::vec3(-0.657 * scale, -2.731 * scale, 0.881 * scale);
+
+	const glm::vec3 leftRearWheelPos;
+	const glm::vec3 rightRearWheelPos;
+
+	const glm::vec3 leftFrontWheelPos;
+	const glm::vec3 rightFrontWheelPos;
+
+	std::map<WheelPosition, glm::vec3> wheelPositions;
 
 	glm::vec3 pos;
 	float speed = 0.0;
 
-	HummerInfo(float length, float width, float minZ, glm::vec3 startPos): 
-		length(length * scale), width(width * scale), minZ(minZ), pos(startPos) {}
+	HummerInfo(float length, float width, float minZ, glm::vec3 startPos, Config config): 
+		scale(config.getFloat("scale")),
+		length(length * config.getFloat("scale")), 
+		width(width * config.getFloat("scale")), 
+		minZ(minZ), 
+		pos(startPos),
+		independentWheels(config.getBool("independent_wheels")),
+
+		rightHeadLightPos(config.getVec3("right_head_light_pos")	* config.getFloat("scale")),
+		leftHeadLightPos(config.getVec3("left_head_light_pos")		* config.getFloat("scale")),
+		rightRearLightPos(config.getVec3("right_rear_light_pos")	* config.getFloat("scale")),
+		leftRearLightPos(config.getVec3("left_rear_light_pos")		* config.getFloat("scale")),
+
+		rightFrontWheelPos(config.getVec3("front_right_wheel_pos")	* config.getFloat("scale")),
+		leftFrontWheelPos(config.getVec3("front_left_wheel_pos")	* config.getFloat("scale")),
+		rightRearWheelPos(config.getVec3("rear_right_wheel_pos")	* config.getFloat("scale")),
+		leftRearWheelPos(config.getVec3("rear_left_wheel_pos")		* config.getFloat("scale")),
+
+		maxEngineSpeed(config.getFloat("max_engine_speed")),
+		maxSpeed(config.getFloat("max_speed")),
+		acceleration(config.getFloat("acceleration")),
+		breakDeceleretion(config.getFloat("break_deceleretion")),
+		naturalDeceleretion(config.getFloat("natural_deceleretion")),
+		rotSpeed(glm::radians(config.getFloat("rot_speed_degree")))
+
+
+	{
+
+		wheelPositions[FRONT_RIGHT]	= rightFrontWheelPos;
+		wheelPositions[FRONT_LEFT]	= leftFrontWheelPos;
+		wheelPositions[REAR_RIGHT]	= rightRearWheelPos;
+		wheelPositions[REAR_LEFT]	= leftRearWheelPos;
+
+	}
 };
 
-const float HummerInfo::scale = 0.1f;
+//const float HummerInfo::scale = 0.1f;
 
 
 // MAIN ! 
 class MonsterTruckSimulator : public BaseProject {
 protected:
-	// Here you list all the Vulkan objects you need:
+	//Config hummerConfig = Config("HummerIndependentWheelsConfig");
+	Config hummerConfig = Config("JeepConfig");
+	//Config hummerConfig = Config("HummerConfig");
 
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout globalDSL;
@@ -130,6 +188,10 @@ protected:
 	DescriptorSet hummerDS; // objDSL
 	HummerInfo* hummerInfo;
 
+	Model wheelModel;
+	Texture wheelTexture;
+	DescriptorSet wheelDSs[4];
+
 	Model skyBoxModel;
 	Texture skyboxStarsTexture;
 	Texture skyboxCloudsTexture;
@@ -140,6 +202,13 @@ protected:
 	Model circleModel;
 	DescriptorSet speedometerDS;
 	Texture speedometerTexture;
+
+	DescriptorSet watchDS;
+	Texture watchTexture;
+
+	Model watchHandModel;
+	DescriptorSet watchHandDS;
+	Texture watchHandTexture;
 
 	Model rectangleModel;
 	DescriptorSet speedometerHandDS;
@@ -159,9 +228,9 @@ protected:
 		initialBackgroundColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 		// Descriptor pool sizes
-		uniformBlocksInPool = 6;
-		texturesInPool = 6;
-		setsInPool = 6;
+		uniformBlocksInPool = 12;
+		texturesInPool = 12;
+		setsInPool = 12;
 	}
 
 	// Here you load and setup all your Vulkan objects
@@ -216,14 +285,32 @@ protected:
 			{1, TEXTURE, 0, &speedometerTexture},
 		});
 
+		watchTexture.init(this, WATCH_TEXTURE_PATH);
+
+		watchDS.init(this, &hoverlayDSL, {
+			{0, UNIFORM, sizeof(HoverlayUniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &watchTexture},
+			});
+
 		speedometerHandDS.init(this, &hoverlayDSL, {
 			{0, UNIFORM, sizeof(HoverlayUniformBufferObject), nullptr},
 			{1, TEXTURE, 0, &speedometerHandTexture},
 		});
 
+		watchHandModel.init(this, WATCH_HAND_MODEL_PATH);
+		watchHandTexture.init(this, WATCH_HAND_TEXTURE_PATH);
+
+		watchHandDS.init(this, &hoverlayDSL, {
+			{0, UNIFORM, sizeof(HoverlayUniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &watchHandTexture},
+			});
+
+
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		hummerModel.init(this, HUMMER_MODEL_PATH);
-		hummerTexture.init(this, HUMMER_TEXTURE_PATH);
+		//hummerModel.init(this, HUMMER_MODEL_PATH);
+		//hummerTexture.init(this, HUMMER_TEXTURE_PATH);
+		hummerModel.init(this, hummerConfig.get("model_path"));
+		hummerTexture.init(this, hummerConfig.get("texture_path"));
 
 		hummerDS.init(this, &objDSL, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
@@ -235,6 +322,23 @@ protected:
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &hummerTexture},
 			});
+
+		std::cout << "Ind. wheels: " << hummerConfig.getBool("independent_wheels") << std::endl;
+
+		if (hummerConfig.getBool("independent_wheels")) {
+
+			wheelModel.init(this, hummerConfig.get("wheel_model_path"));
+			wheelTexture.init(this, hummerConfig.get("wheel_texture_path"));
+
+			for (int i = 0; i < 4; i++) {
+				wheelDSs[i].init(this, &objDSL, {
+							{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+							{1, TEXTURE, 0, &wheelTexture},
+					});
+			}
+			
+		}
+		
 
 		terrainModel.init(this, TERRAIN_MODEL_PATH);
 		terrainTexture.init(this, TERRAIN_TEXTURE_PATH);
@@ -319,7 +423,7 @@ protected:
 
 		std::cout << "Len: " << hummerLength << std::endl;
 
-		hummerInfo = new HummerInfo(hummerLength, hummerWidth, hummerMinZ, glm::vec3(terrainInfo.center, 2.0));
+		hummerInfo = new HummerInfo(hummerLength, hummerWidth, hummerMinZ, glm::vec3(terrainInfo.center, 2.0), hummerConfig);
 
 		std::cout << "Truck lenght: " << hummerInfo->length << std::endl;
 	}
@@ -330,6 +434,16 @@ protected:
 		hummerTexture.cleanup();
 		hummerModel.cleanup();
 
+		if (hummerInfo->independentWheels) {
+
+			for (int i = 0; i < 4; i++) {
+				wheelDSs[i].cleanup();
+			}
+
+			wheelTexture.cleanup();
+			wheelModel.cleanup();
+		}
+
 		delete hummerInfo;
 
 		terrainDS.cleanup();
@@ -339,6 +453,11 @@ protected:
 		rectangleModel.cleanup();
 		speedometerHandTexture.cleanup();
 
+		watchDS.cleanup();
+		watchTexture.cleanup();
+		watchHandDS.cleanup();
+		watchHandTexture.cleanup();
+		watchHandModel.cleanup();
 		speedometerDS.cleanup();
 		speedometerHandDS.cleanup();
 		skyBoxDS.cleanup();
@@ -431,6 +550,29 @@ protected:
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(hummerModel.indices.size()), 1, 0, 0, 0);
 
 
+		//WHEELS
+
+		if (hummerInfo->independentWheels) {
+
+			VkBuffer wheelVertexBuffers[] = { wheelModel.vertexBuffer };
+			VkDeviceSize wheelOffsets[] = { 0 };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, wheelVertexBuffers, wheelOffsets);
+			vkCmdBindIndexBuffer(commandBuffer, wheelModel.indexBuffer, 0,
+				VK_INDEX_TYPE_UINT32);
+
+
+
+			for (int i = 0; i < 4; i++) {
+				vkCmdBindDescriptorSets(commandBuffer,
+					VK_PIPELINE_BIND_POINT_GRAPHICS,
+					P1.pipelineLayout, 1, 1, &wheelDSs[i].descriptorSets[currentImage],
+					0, nullptr);
+
+				vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(wheelModel.indices.size()), 1, 0, 0, 0);
+			}
+		}
+
+
 		// TERRAIN
 
 		VkBuffer terrainVertexBuffers[] = {terrainModel.vertexBuffer};
@@ -470,7 +612,14 @@ protected:
 
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(circleModel.indices.size()), 1, 0, 0, 0);
 
-		
+		// WATCH
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			hoverlayPipeline.pipelineLayout, 0, 1, &watchDS.descriptorSets[currentImage],
+			0, nullptr);
+
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(circleModel.indices.size()), 1, 0, 0, 0);
 
 		// Speedometer hand
 
@@ -488,20 +637,43 @@ protected:
 		//vkCmdPipelineBarrier()
 
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(rectangleModel.indices.size()), 1, 0, 0, 0);
+
+
+		// Watch hand
+
+		VkBuffer watchModelVertexBuffers[] = { watchHandModel.vertexBuffer };
+		VkDeviceSize watchModelOffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, watchModelVertexBuffers, watchModelOffsets);
+		vkCmdBindIndexBuffer(commandBuffer, watchHandModel.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			hoverlayPipeline.pipelineLayout, 0, 1, &watchHandDS.descriptorSets[currentImage],
+			0, nullptr);
+
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(watchHandModel.indices.size()), 1, 0, 0, 0);
 		
 	}
 
-	float getDayTime(float deltaTime) {
-		static float dayTime = 0.0;
-		const float timeSpeed = 0.2;
+	const bool ALWAYS_DAY = false;
 
-		float delta = deltaTime * timeSpeed;
+	float getDayTime(float deltaTime, float timeSpeed) {
+
+		if (ALWAYS_DAY) return 12;
+
+		static float dayTime = 0.0;
+
+		float delta = deltaTime * (timeSpeed >= 0 ? timeSpeed : 0.2f);
 		dayTime += delta;
 		if (dayTime > 24) dayTime = delta;
 
 		return dayTime;
 	}
 
+	float getDayTime(float deltaTime) {
+		return getDayTime(deltaTime, -1.0);
+	}
 
 	struct SkyInfo {
 		glm::vec3 skyColor;
@@ -716,6 +888,26 @@ protected:
 		return xInBounds && yInBounds;
 	}
 
+	bool singleKeyPress(GLFWwindow* window, int key) {
+		static std::map<int, int> keysStatus;
+
+		int currentKeyStatus = glfwGetKey(window, key);
+		
+		if (keysStatus.count(key) > 0) {
+			int prevKeyStatus = keysStatus[key];
+			keysStatus[key] = currentKeyStatus;
+
+			if (prevKeyStatus == currentKeyStatus)
+				return GLFW_RELEASE;
+			else
+				return currentKeyStatus;
+		}
+		else {
+			keysStatus[key] = currentKeyStatus;
+			return currentKeyStatus;
+		}
+	}
+
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
@@ -735,6 +927,8 @@ protected:
 		static float yaw = 0;
 		static float roll = 0;
 		static float pitch = 0;
+
+		static float wheelPitch = 0.0;
 
 		static float vSlope = 0;
 
@@ -862,14 +1056,17 @@ protected:
 		bool rotateLeft = glfwGetKey(window, GLFW_KEY_A) || axisValue < 0.0;
 		bool rotateRight = glfwGetKey(window, GLFW_KEY_D) || axisValue > 0.0;
 
-		if (rotateLeft && hummerInfo->speed != 0) {
-			float rotSpeed = hummerInfo->rotSpeed * (glfwGetKey(window, GLFW_KEY_A) ? 1.0 : glm::abs(axisValue));
-			yaw += deltaT * rotSpeed;
+		float rotationAxis = 0.0f;
+
+		bool rotationWithKeyboard = glfwGetKey(window, GLFW_KEY_A) || glfwGetKey(window, GLFW_KEY_D);
+
+		if (rotateLeft || rotateRight) {
+			rotationAxis = (rotateRight ? -1 : 1) * hummerInfo->rotSpeed * (rotationWithKeyboard ? 1.0 : glm::abs(axisValue));
+			if (hummerInfo->speed != 0) {
+				yaw += deltaT * rotationAxis;
+			}
 		}
-		if (rotateRight && hummerInfo->speed != 0) {
-			float rotSpeed = hummerInfo->rotSpeed * (glfwGetKey(window, GLFW_KEY_D) ? 1.0 : axisValue);
-			yaw -= deltaT * rotSpeed;
-		}
+			
 
 		axisValue = controllerConnected ? (glm::abs(controllerAxes[2]) < 0.1 ? 0.0 : controllerAxes[2]) : 0.0;
 
@@ -975,7 +1172,9 @@ protected:
 		}
 
 		pitch = debugPitch;
-		roll = debugRoll;*/
+		roll = debugRoll;
+
+		hummerInfo->pos.z = 2;*/
 
 		///////////////////////
 
@@ -1011,7 +1210,17 @@ protected:
 			<< std::endl;*/
 
 		
-		float dayTime = getDayTime(deltaT);
+		static bool timeStopped = false;
+		float dayTime;
+
+		if (singleKeyPress(window, GLFW_KEY_U)) {
+			timeStopped = !timeStopped;
+		}
+
+		if (glfwGetKey(window, GLFW_KEY_Y)) dayTime = getDayTime(deltaT, 5.0);
+		else if(!timeStopped) dayTime = getDayTime(deltaT);
+		else dayTime = getDayTime(deltaT, 0);
+
 
 		//std::cout << dayTime << std::endl;
 
@@ -1104,6 +1313,44 @@ protected:
 		vkUnmapMemory(device, hummerDS.uniformBuffersMemory[0][currentImage]);
 
 
+		// WHEELS
+		if (hummerInfo->independentWheels)
+		{
+			auto wheelIterator = hummerInfo->wheelPositions.begin();
+
+			wheelPitch += hummerInfo->speed * 10;
+
+			for (int i = 0; i < 4 && wheelIterator != hummerInfo->wheelPositions.end(); i++, wheelIterator++) {
+
+				glm::vec3 wheelPos = hummerInfo->pos + wheelIterator->second * rotMat;
+
+				float wheelRoll = 0.0;
+				if (wheelIterator->first == FRONT_RIGHT || wheelIterator->first == REAR_RIGHT)
+					wheelRoll = glm::radians(180.0f);
+
+				float wheelYaw = 0.0;
+				if (wheelIterator->first == FRONT_LEFT || wheelIterator->first == FRONT_RIGHT)
+					wheelYaw = rotationAxis * 0.5;
+
+
+				ubo.model =
+					glm::translate(glm::mat4(1.0f), wheelPos) *
+					glm::rotate(glm::mat4(1.0f), yaw, glm::vec3(0.0, 0.0, 1.0)) *
+					glm::rotate(glm::mat4(1.0f), pitch, glm::vec3(1.0, 0.0, 0.0)) *
+					glm::rotate(glm::mat4(1.0f), roll, glm::vec3(0.0, 1.0, 0.0)) *
+					glm::rotate(glm::mat4(1.0f), wheelYaw, glm::vec3(0.0, 0.0, 1.0)) *
+					glm::rotate(glm::mat4(1.0f), wheelPitch, glm::vec3(1.0, 0.0, 0.0)) *
+					glm::rotate(glm::mat4(1.0f), wheelRoll, glm::vec3(0.0, 1.0, 0.0)) *
+					glm::scale(glm::mat4(1.0f), glm::vec3(hummerInfo->scale));
+
+				vkMapMemory(device, wheelDSs[i].uniformBuffersMemory[0][currentImage], 0,
+					sizeof(ubo), 0, &data);
+				memcpy(data, &ubo, sizeof(ubo));
+				vkUnmapMemory(device, wheelDSs[i].uniformBuffersMemory[0][currentImage]);
+			}
+		}
+
+
 		// TERRAIN
 		ubo.model = glm::mat4(1.0f);
 		
@@ -1147,6 +1394,7 @@ protected:
 		memcpy(data, &hubo, sizeof(hubo));
 		vkUnmapMemory(device, speedometerDS.uniformBuffersMemory[0][currentImage]);
 
+
 		// Speedometer hand
 
 		constexpr float minAngle = glm::radians(45.0f);
@@ -1168,6 +1416,37 @@ protected:
 			sizeof(subo), 0, &data);
 		memcpy(data, &hubo, sizeof(hubo));
 		vkUnmapMemory(device, speedometerHandDS.uniformBuffersMemory[0][currentImage]);
+
+		// Watch
+
+		glm::vec2 watchPos(0.8 * aspectRatio, -0.65);
+
+		hubo.model =
+			glm::translate(glm::mat4(1.0), glm::vec3(watchPos, -0.1)) *
+			glm::scale(glm::mat4(1.0), glm::vec3(0.2));
+		hubo.proj = glm::ortho(-1.0f * aspectRatio, 1.0f * aspectRatio, -1.0f, 1.0f, 0.0f, 1.0f);
+
+		vkMapMemory(device, watchDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(subo), 0, &data);
+		memcpy(data, &hubo, sizeof(hubo));
+		vkUnmapMemory(device, watchDS.uniformBuffersMemory[0][currentImage]);
+
+		// Watch hand
+
+		float watchHandAngle = glm::radians(180.0f + 30.0f * dayTime);
+
+		//std::cout << "Speed: " << hummerInfo->speed << " - Angle: " << speedometerAngle << std::endl;
+
+		hubo.model =
+			glm::translate(glm::mat4(1.0), glm::vec3(watchPos, 0.0)) *
+			glm::rotate(glm::mat4(1.0), watchHandAngle, glm::vec3(0.0, 0.0, 1.0)) *
+			glm::scale(glm::mat4(1.0), glm::vec3(0.04, 0.065, 0.04));
+		//hubo.proj = glm::ortho(-1.0f * aspectRatio, 1.0f * aspectRatio, -1.0f, 1.0f);
+
+		vkMapMemory(device, watchHandDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(subo), 0, &data);
+		memcpy(data, &hubo, sizeof(hubo));
+		vkUnmapMemory(device, watchHandDS.uniformBuffersMemory[0][currentImage]);
 	}
 };
 
